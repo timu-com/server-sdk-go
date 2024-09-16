@@ -18,7 +18,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v4"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/livekit/protocol/livekit"
@@ -38,6 +38,10 @@ func newLocalParticipant(engine *RTCEngine, roomcallback *RoomCallback) *LocalPa
 		baseParticipant: *newBaseParticipant(roomcallback),
 		engine:          engine,
 	}
+}
+
+func (p *LocalParticipant) PublishTracks(tracks []*LocalTrack, opts *TrackPublicationOptions) (*LocalTrackPublication, error) {
+	return nil, nil
 }
 
 func (p *LocalParticipant) PublishTrack(track webrtc.TrackLocal, opts *TrackPublicationOptions) (*LocalTrackPublication, error) {

@@ -269,12 +269,20 @@ func (s *SampleBuilder) Push(p *rtp.Packet) {
 		} else {
 			last := p.SequenceNumber - s.maxLate
 			if (last-s.lastSeqno)&0x8000 == 0 {
-				if s.head != s.tail {
+
+				if s.head != s.tail && s.packets != nil && s.packets[s.tail].packet != nil {
 					seqno := s.packets[s.tail].packet.SequenceNumber - 1
 					if (last-seqno)&0x8000 == 0 {
 						last = seqno
 					}
 				}
+
+				// if s.head != s.tail {
+				// 	seqno := s.packets[s.tail].packet.SequenceNumber - 1
+				// 	if (last-seqno)&0x8000 == 0 {
+				// 		last = seqno
+				// 	}
+				// }
 				s.lastSeqno = last
 			}
 		}
@@ -427,10 +435,26 @@ again:
 		return nil, 0
 	}
 
+	// if !s.packets[s.tail].start {
+	// 	diff := s.packets[s.dec(s.head)].packet.SequenceNumber -
+	// 		s.packets[s.tail].packet.SequenceNumber
+	// 	if force || diff > s.maxLate {
+	// 		s.drop()
+	// 		goto again
+	// 	}
+	// 	return nil, 0
+	// }
+
 	if !s.packets[s.tail].start {
-		diff := s.packets[s.dec(s.head)].packet.SequenceNumber -
-			s.packets[s.tail].packet.SequenceNumber
-		if force || diff > s.maxLate {
+		if s.packets[s.tail].packet != nil && s.packets[s.dec(s.head)].packet != nil {
+			diff := s.packets[s.dec(s.head)].packet.SequenceNumber -
+				s.packets[s.tail].packet.SequenceNumber
+			if force || diff > s.maxLate {
+				s.drop()
+				goto again
+			}
+		}
+		if force {
 			s.drop()
 			goto again
 		}

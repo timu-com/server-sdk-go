@@ -28,8 +28,8 @@ import (
 	"github.com/pion/rtp"
 	"github.com/pion/rtp/codecs"
 	"github.com/pion/sdp/v3"
-	"github.com/pion/webrtc/v3"
-	"github.com/pion/webrtc/v3/pkg/media"
+	"github.com/pion/webrtc/v4"
+	"github.com/pion/webrtc/v4/pkg/media"
 	"go.uber.org/atomic"
 
 	"github.com/livekit/protocol/livekit"
@@ -55,6 +55,17 @@ type SampleWriteOptions struct {
 // publishing tracks at the right frequency
 // This extends webrtc.TrackLocalStaticSample, and adds the ability to write RTP extensions
 type LocalTrack struct {
+	StopTrack             bool
+	playYet               func(trackKey string, trackPlayHead int64, offset int64) bool // in milliseconds before playing the next sample
+	paused                func() bool
+	TrackName             string
+	playHeadPosition      time.Duration   // A millisecond value
+	playHeadPositionMilli int64           // A millisecond value
+	ivfSampleOffsetMilli  int64           // A millisecond value
+	ivfOffsetsLookup      map[int64]int64 // for map[seekIncrement]sampleNumberFromFile
+	audioOffsetsLookup    map[int64]int64 // for map[seekIncrement]sampleNumberFromFile
+	// seekIncrement         int64
+	trackKey         string // used to identity a track in a session file
 	packetizer       rtp.Packetizer
 	sequencer        rtp.Sequencer
 	transceiver      *webrtc.RTPTransceiver
@@ -187,16 +198,20 @@ func (s *LocalTrack) Bind(t webrtc.TrackLocalContext) (webrtc.RTPCodecParameters
 	for _, ext := range t.HeaderExtensions() {
 		if ext.URI == sdp.AudioLevelURI {
 			s.audioLevelID = uint8(ext.ID)
+			// logger.Infow(" sdp.AudioLevelURI <><> ", s.trackName, s.audioLevelID, s.ssrc)
 		}
 
 		if ext.URI == sdp.SDESMidURI {
 			s.sdesMidID = uint8(ext.ID)
+			// logger.Infow(" sdp.SDESMidURI <><> ", s.trackName, s.sdesMidID, s.ssrc)
 		}
 
 		if ext.URI == sdp.SDESRTPStreamIDURI {
 			s.sdesRtpStreamID = uint8(ext.ID)
+			// logger.Infow(" sdp.SDESRTPStreamIDURI <><> ", s.trackName, s.sdesRtpStreamID, s.ssrc)
 		}
 	}
+	// logger.Infow("CLOCKRATE :: ", codec.ClockRate)
 	s.sequencer = rtp.NewRandomSequencer()
 	s.packetizer = rtp.NewPacketizer(
 		rtpOutboundMTU,
@@ -218,7 +233,9 @@ func (s *LocalTrack) Bind(t webrtc.TrackLocalContext) (webrtc.RTPCodecParameters
 		go s.writeWorker(provider, onWriteComplete)
 	}
 
-	go s.rtcpWorker(t.RTCPReader())
+	// TODO :: Broke during upgrade to pion/webrtc v4
+	// logger.Infow("RTCPReader ")
+	// go s.rtcpWorker(t.RTCPReader())
 
 	// notify callbacks last
 	if onBind != nil {
@@ -272,6 +289,23 @@ func (s *LocalTrack) StartWrite(provider SampleProvider, onComplete func()) erro
 		if err := provider.OnBind(); err != nil {
 			return err
 		}
+		// create a play offset table for every seekIncrement position
+		// if s.Kind().String() == "video" {
+		// 	s.createIVFOffsetsLookup(provider)
+		// 	logger.Infow("IVFOffsetsLookup ")
+		// 	for key, value := range s.ivfOffsetsLookup {
+		// 		logger.Infow("offset ", key, value)
+		// 	}
+		// }
+
+		// if s.Kind().String() == "audio" {
+		// 	s.createAudioOffsetsLookup(provider)
+		// 	logger.Infow("AudioOffsetsLookup ")
+		// 	for key, value := range s.audioOffsetsLookup {
+		// 		logger.Infow("offset ", key, value)
+		// 	}
+		// }
+
 		// start new writer
 		go s.writeWorker(provider, onComplete)
 	}
@@ -534,6 +568,54 @@ func (s *LocalTrack) rtcpWorker(rtcpReader interceptor.RTCPReader) {
 	}
 }
 
+func (s *LocalTrack) createIVFOffsetsLookup(provider SampleProvider) {
+	s.ivfOffsetsLookup = map[int64]int64{}
+	var seekIncrement int64 = 0
+	var seekTimeMilli int64 = 0
+	var sampleNumber int64 = 0
+	for {
+		sampleNumber++
+		sample, err := provider.NextSample(context.Background())
+		if err == io.EOF {
+			return
+		}
+		if err != nil {
+			logger.Errorw("could not get sample from provider", err)
+			return
+		}
+		seekIncrement += sample.Offset // 3rd header for .ivf samples
+		if seekIncrement > 5000 {
+			seekTimeMilli += seekIncrement
+			s.ivfOffsetsLookup[seekTimeMilli] = sampleNumber
+			seekIncrement = 0
+		}
+	}
+}
+
+func (s *LocalTrack) createAudioOffsetsLookup(provider SampleProvider) {
+	s.audioOffsetsLookup = map[int64]int64{}
+	var seekIncrement int64 = 0
+	var seekTimeMilli int64 = 0
+	var sampleNumber int64 = 0
+	for {
+		sampleNumber++
+		sample, err := provider.NextSample(context.Background())
+		if err == io.EOF {
+			return
+		}
+		if err != nil {
+			logger.Errorw("could not get sample from provider", err)
+			return
+		}
+		seekIncrement += sample.Duration.Milliseconds()
+		if seekIncrement > 5000 {
+			seekTimeMilli += seekIncrement
+			s.audioOffsetsLookup[seekTimeMilli] = sampleNumber
+			seekIncrement = 0
+		}
+	}
+}
+
 func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 	s.writeStartupLock.Lock()
 
@@ -562,19 +644,29 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 
 	audioProvider, isAudioProvider := provider.(AudioSampleProvider)
 
-	nextSampleTime := time.Now()
-	ticker := time.NewTicker(10 * time.Millisecond)
-	defer ticker.Stop()
-
 	for {
 		// Be mindful that NextSample is not thread-safe
 		sample, err := provider.NextSample(ctx)
 		if err == io.EOF {
+			logger.Infow(">END OF FILE", s.TrackName)
 			return
 		}
 		if err != nil {
 			logger.Errorw("could not get sample from provider", err)
 			return
+		}
+
+		for {
+			if s.StopTrack {
+				logger.Infow("EXITING LOCALTRACK", s.TrackName)
+				return
+			}
+
+			if s.playYet(s.trackKey, s.playHeadPositionMilli, s.ivfSampleOffsetMilli) && !s.paused() {
+				// logger.Infow("playHeadPositionMilli", s.playHeadPositionMilli)
+				break
+			}
+			time.Sleep(1 * time.Millisecond)
 		}
 
 		if !s.muted.Load() {
@@ -590,23 +682,23 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 				logger.Errorw("could not write sample", err)
 				return
 			}
+
+			// logger.Infow("TRACK :: ", s.trackName, s.trackTime(s.trackKey), sample.Duration, s.playHeadPosition)
 		}
 
-		// account for clock drift
-		nextSampleTime = nextSampleTime.Add(sample.Duration)
-		sleepDuration := time.Until(nextSampleTime)
-		if sleepDuration <= 0 {
-			continue
-		}
-		ticker.Reset(sleepDuration)
+		s.playHeadPosition += sample.Duration
+		s.playHeadPositionMilli += sample.Duration.Milliseconds()
+		s.ivfSampleOffsetMilli += sample.Offset
 
 		select {
-		case <-ticker.C:
-			continue
 		case <-ctx.Done():
+			logger.Infow("EXITING LOCALTRACK CONTEXT DONE")
 			return
+		default:
+			continue
 		}
 	}
+
 }
 
 // duplicated from pion mediaengine.go

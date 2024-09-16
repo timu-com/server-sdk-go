@@ -27,7 +27,7 @@ import (
 	"github.com/pion/interceptor/pkg/nack"
 	"github.com/pion/interceptor/pkg/twcc"
 	"github.com/pion/sdp/v3"
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v4"
 
 	lkinterceptor "github.com/livekit/mediatransportutil/pkg/interceptor"
 	"github.com/livekit/mediatransportutil/pkg/pacer"
@@ -202,8 +202,8 @@ func (t *PCTransport) handleRTTUpdate(rtt uint32) {
 	}
 }
 
-func (t *PCTransport) onICEGatheringStateChange(state webrtc.ICEGathererState) {
-	if state != webrtc.ICEGathererStateComplete {
+func (t *PCTransport) onICEGatheringStateChange(state webrtc.ICEGatheringState) {
+	if state != webrtc.ICEGatheringStateComplete {
 		return
 	}
 

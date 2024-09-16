@@ -74,7 +74,7 @@ func main() {
 			frameDuration = 20 * time.Millisecond
 		}
 
-		track, err := lksdk.NewLocalFileTrack(file.Name(),
+		track, err := lksdk.NewLocalFileTrack(file.Name(), "trackKey", nil, nil,
 			lksdk.ReaderTrackWithFrameDuration(frameDuration),
 			lksdk.ReaderTrackWithOnWriteComplete(func() { fmt.Println("track finished") }),
 		)

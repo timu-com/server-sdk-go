@@ -21,12 +21,13 @@ import (
 	"path/filepath"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/pion/rtcp"
-	"github.com/pion/webrtc/v3"
-	"github.com/pion/webrtc/v3/pkg/media"
-	"github.com/pion/webrtc/v3/pkg/media/h264reader"
-	"github.com/pion/webrtc/v3/pkg/media/ivfreader"
-	"github.com/pion/webrtc/v3/pkg/media/oggreader"
+	"github.com/pion/webrtc/v4"
+	"github.com/pion/webrtc/v4/pkg/media"
+	"github.com/pion/webrtc/v4/pkg/media/h264reader"
+	"github.com/pion/webrtc/v4/pkg/media/ivfreader"
+	"github.com/pion/webrtc/v4/pkg/media/oggreader"
 )
 
 const (
@@ -93,7 +94,7 @@ func ReaderTrackWithSampleOptions(opts ...LocalTrackOptions) func(provider *Read
 }
 
 // NewLocalFileTrack creates an *os.File reader for NewLocalReaderTrack
-func NewLocalFileTrack(file string, options ...ReaderSampleProviderOption) (*LocalTrack, error) {
+func NewLocalFileTrack(file string, trackKey string, paused func() bool, playYet func(trackKey string, trackPlayHead int64, offset int64) bool, options ...ReaderSampleProviderOption) (*LocalTrack, error) {
 	// File health check
 	var err error
 	if _, err = os.Stat(file); err != nil {
@@ -139,6 +140,57 @@ func NewLocalFileTrack(file string, options ...ReaderSampleProviderOption) (*Loc
 		_ = fp.Close()
 		return nil, err
 	}
+
+	// track.sessionTimeChannel = sessionTimeChannel
+	track.trackKey = trackKey
+	track.TrackName = file
+	track.paused = paused
+	track.playYet = playYet
+
+	return track, nil
+}
+
+// NewLocalBucketTrack creates a reader for NewLocalReaderTrack
+func NewLocalBucketTrack(trackReader *storage.Reader, file string, trackKey string, paused func() bool, playYet func(trackKey string, trackPlayHead int64, offset int64) bool, options ...ReaderSampleProviderOption) (*LocalTrack, error) {
+	// Determine mime type from extension
+	var mime string
+	switch filepath.Ext(file) {
+	case ".h264":
+		mime = webrtc.MimeTypeH264
+	case ".ivf":
+		// buf := make([]byte, 3)
+		// _, err = fp.ReadAt(buf, 8)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// switch string(buf) {
+		// case "VP8":
+		mime = webrtc.MimeTypeVP8
+		// case "VP9":
+		// 	mime = webrtc.MimeTypeVP9
+		// default:
+		// 	_ = fp.Close()
+		// 	return nil, ErrCannotDetermineMime
+		// }
+		// _, _ = fp.Seek(0, 0)
+	case ".ogg":
+		mime = webrtc.MimeTypeOpus
+	default:
+		_ = trackReader.Close()
+		return nil, ErrCannotDetermineMime
+	}
+
+	track, err := NewLocalReaderTrack(trackReader, mime, options...)
+	if err != nil {
+		_ = trackReader.Close()
+		return nil, err
+	}
+
+	track.trackKey = trackKey
+	track.TrackName = file
+	track.paused = paused
+	track.playYet = playYet
+
 	return track, nil
 }
 
@@ -253,6 +305,8 @@ func (p *ReaderSampleProvider) NextSample(ctx context.Context) (media.Sample, er
 		delta := header.Timestamp - p.lastTimestamp
 		sample.Data = frame
 		sample.Duration = time.Duration(p.ivfTimebase*float64(delta)*1000) * time.Millisecond
+		// logger.Infow("TIME OFFSET ", int64(header.Offset))
+		sample.Offset = int64(header.Offset)
 		p.lastTimestamp = header.Timestamp
 	case webrtc.MimeTypeOpus:
 		pageData, pageHeader, err := p.oggReader.ParseNextPage()
