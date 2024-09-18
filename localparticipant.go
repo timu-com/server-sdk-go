@@ -340,6 +340,16 @@ func (p *UserDataPacket) ToProto() *livekit.DataPacket {
 	}}
 }
 
+// TranscriptionDataPacket is a custom user data that can be sent via WebRTC on a custom topic.
+type TranscriptionDataPacket struct {
+	Transcription *livekit.Transcription
+}
+
+// ToProto implements DataPacket.
+func (p *TranscriptionDataPacket) ToProto() *livekit.DataPacket {
+	return &livekit.DataPacket{Value: &livekit.DataPacket_Transcription{Transcription: p.Transcription}}
+}
+
 // PublishDataPacket sends a packet via a WebRTC data channel. UserData can be used for sending custom user data.
 //
 // By default, the message can be received by all participants in a room,

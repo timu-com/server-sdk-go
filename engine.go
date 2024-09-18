@@ -499,6 +499,11 @@ func (e *RTCEngine) handleDataPacket(msg webrtc.DataChannelMessage) {
 		if e.OnDataPacket != nil {
 			e.OnDataPacket(identity, msg.SipDtmf)
 		}
+
+	case *livekit.DataPacket_Transcription:
+		if e.OnDataPacket != nil {
+			e.OnDataPacket(identity, &TranscriptionDataPacket{Transcription: msg.Transcription})
+		}
 	}
 }
 
