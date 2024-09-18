@@ -236,6 +236,10 @@ func (s *SampleBuilder) drop() (bool, uint32) {
 	if s.onPacketDropped != nil {
 		s.onPacketDropped()
 	}
+	if len(s.packets) == 0 || s.packets[s.tail].packet == nil {
+		return false, 0
+	}
+
 	ts := s.packets[s.tail].packet.Timestamp
 	s.release(true)
 	for s.tail != s.head {
