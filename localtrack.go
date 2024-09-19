@@ -493,9 +493,12 @@ func (s *LocalTrack) WriteSample(sample media.Sample, opts *SampleWriteOptions) 
 	s.lock.Unlock()
 
 	var writeErrs []error
+
 	for _, p := range packets {
 		if err := s.WriteRTP(p, opts); err != nil {
 			writeErrs = append(writeErrs, err)
+		} else {
+			logger.Infow("successfully wrote packets for track", "name", s.TrackName, "count", len(packets))
 		}
 	}
 
