@@ -668,29 +668,32 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 			}
 
 			drift := s.playYet(s.playHeadPositionMilli, s.ivfSampleOffsetMilli)
-			if drift >= 1000 && !s.paused() {
-				for {
-					drift := s.playYet(s.playHeadPositionMilli, s.ivfSampleOffsetMilli)
-					if drift > 1000 {
-						//logger.Infow("dropping frames to catch up", drift)
+			if drift >= 0 && !s.paused() {
+				if drift > 1000 {
+					for {
+						drift := s.playYet(s.playHeadPositionMilli, s.ivfSampleOffsetMilli)
+						if drift > 1000 {
+							//logger.Infow("dropping frames to catch up", drift)
 
-						sample, err := provider.NextSample(ctx)
-						if err == io.EOF {
-							logger.Infow(">END OF FILE", s.TrackName)
-							return
-						}
-						if err != nil {
-							logger.Errorw("could not get sample from provider", err)
-							return
-						}
+							sample, err := provider.NextSample(ctx)
+							if err == io.EOF {
+								logger.Infow(">END OF FILE", s.TrackName)
+								return
+							}
+							if err != nil {
+								logger.Errorw("could not get sample from provider", err)
+								return
+							}
 
-						s.playHeadPosition += sample.Duration
-						s.playHeadPositionMilli += sample.Duration.Milliseconds()
-						s.ivfSampleOffsetMilli += sample.Offset
-					} else {
-						fmt.Printf("%s Skipped ahead to %f", s.TrackName, s.playHeadPosition.Seconds())
-						break
+							s.playHeadPosition += sample.Duration
+							s.playHeadPositionMilli += sample.Duration.Milliseconds()
+							s.ivfSampleOffsetMilli += sample.Offset
+						} else {
+							break
+						}
 					}
+					fmt.Printf("%s Skipped ahead to %f", s.TrackName, s.playHeadPosition.Seconds())
+					continue
 				}
 
 				// logger.Infow("playHeadPositionMilli", s.playHeadPositionMilli)
