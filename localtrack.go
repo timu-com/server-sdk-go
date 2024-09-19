@@ -56,8 +56,9 @@ type SampleWriteOptions struct {
 // This extends webrtc.TrackLocalStaticSample, and adds the ability to write RTP extensions
 type LocalTrack struct {
 	StopTrack             bool
-	playYet               func(trackKey string, trackPlayHead int64, offset int64) bool // in milliseconds before playing the next sample
+	playYet               func(trackKey string, trackPlayHead int64, offset int64, seekPosition int64) bool // in milliseconds before playing the next sample
 	paused                func() bool
+	seekPosition          int64
 	TrackName             string
 	playHeadPosition      time.Duration   // A millisecond value
 	playHeadPositionMilli int64           // A millisecond value
@@ -662,7 +663,7 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 				return
 			}
 
-			if s.playYet(s.trackKey, s.playHeadPositionMilli, s.ivfSampleOffsetMilli) && !s.paused() {
+			if s.playYet(s.trackKey, s.playHeadPositionMilli, s.ivfSampleOffsetMilli, s.seekPosition) && !s.paused() {
 				// logger.Infow("playHeadPositionMilli", s.playHeadPositionMilli)
 				break
 			}
