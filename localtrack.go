@@ -721,6 +721,8 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 				return
 			}
 
+			logger.Infow("rpt timestamp", "name", s.TrackName, "timestamp", s.lastRTPTimestamp)
+
 			// logger.Infow("TRACK :: ", s.trackName, s.trackTime(s.trackKey), sample.Duration, s.playHeadPosition)
 		}
 
