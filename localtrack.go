@@ -667,8 +667,7 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 				// logger.Infow("playHeadPositionMilli", s.playHeadPositionMilli)
 				break
 			}
-			logger.Infow("not time to play yet, playHeadPositionMilli", s.trackKey, s.TrackName, s.playHeadPositionMilli)
-			time.Sleep(1 * time.Second) // time.Millisecond)
+			time.Sleep(1 * time.Millisecond)
 		}
 
 		if !s.muted.Load() {
