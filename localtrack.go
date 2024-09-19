@@ -370,6 +370,7 @@ func (s *LocalTrack) WriteRTP(p *rtp.Packet, opts *SampleWriteOptions) error {
 func (s *LocalTrack) WriteSample(sample media.Sample, opts *SampleWriteOptions) error {
 	s.lock.Lock()
 	if s.packetizer == nil {
+		logger.Infow("no packetizer, dropping packets", "name", s.TrackName)
 		s.lock.Unlock()
 		return nil
 	}
