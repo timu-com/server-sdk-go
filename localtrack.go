@@ -366,7 +366,7 @@ func (s *LocalTrack) WriteRTP(p *rtp.Packet, opts *SampleWriteOptions) error {
 		}
 	}
 
-	logger.Infow("writing track to bindings", "id", s.TrackName)
+	logger.Infow("writing track to bindings", "id", s.TrackName, "ssrc", p.SSRC)
 
 	return s.rtpTrack.WriteRTP(p)
 }
