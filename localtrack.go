@@ -56,7 +56,7 @@ type SampleWriteOptions struct {
 // This extends webrtc.TrackLocalStaticSample, and adds the ability to write RTP extensions
 type LocalTrack struct {
 	StopTrack             bool
-	playYet               func(trackKey string, trackPlayHead int64, offset int64, seekPosition int64) bool // in milliseconds before playing the next sample
+	playYet               func(trackKey string, trackPlayHead int64, offset int64, seekPosition int64) int64 // in milliseconds before playing the next sample
 	paused                func() bool
 	seekPosition          int64
 	TrackName             string
@@ -657,34 +657,42 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 			return
 		}
 
+		drop := false
 		for {
 			if s.StopTrack {
 				logger.Infow("EXITING LOCALTRACK", s.TrackName)
 				return
 			}
 
-			if s.playYet(s.trackKey, s.playHeadPositionMilli, s.ivfSampleOffsetMilli, s.seekPosition) && !s.paused() {
+			drift := s.playYet(s.trackKey, s.playHeadPositionMilli, s.ivfSampleOffsetMilli, s.seekPosition)
+			if drift >= 0 && !s.paused() {
+				if drift > 1000 {
+					drop = true
+					logger.Infow("dropping frames to catch up", drift)
+				}
 				// logger.Infow("playHeadPositionMilli", s.playHeadPositionMilli)
 				break
 			}
 			time.Sleep(1 * time.Millisecond)
 		}
 
-		if !s.muted.Load() {
-			var opts *SampleWriteOptions
-			if isAudioProvider {
-				level := audioProvider.CurrentAudioLevel()
-				opts = &SampleWriteOptions{
-					AudioLevel: &level,
+		if !drop {
+			if !s.muted.Load() {
+				var opts *SampleWriteOptions
+				if isAudioProvider {
+					level := audioProvider.CurrentAudioLevel()
+					opts = &SampleWriteOptions{
+						AudioLevel: &level,
+					}
 				}
-			}
 
-			if err := s.WriteSample(sample, opts); err != nil {
-				logger.Errorw("could not write sample", err)
-				return
-			}
+				if err := s.WriteSample(sample, opts); err != nil {
+					logger.Errorw("could not write sample", err)
+					return
+				}
 
-			// logger.Infow("TRACK :: ", s.trackName, s.trackTime(s.trackKey), sample.Duration, s.playHeadPosition)
+				// logger.Infow("TRACK :: ", s.trackName, s.trackTime(s.trackKey), sample.Duration, s.playHeadPosition)
+			}
 		}
 
 		s.playHeadPosition += sample.Duration
