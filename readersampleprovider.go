@@ -94,7 +94,7 @@ func ReaderTrackWithSampleOptions(opts ...LocalTrackOptions) func(provider *Read
 }
 
 // NewLocalFileTrack creates an *os.File reader for NewLocalReaderTrack
-func NewLocalFileTrack(file string, trackKey string, paused func() bool, playYet func(trackKey string, trackPlayHead int64, offset int64, seekPosition int64) int64, options ...ReaderSampleProviderOption) (*LocalTrack, error) {
+func NewLocalFileTrack(file string, trackKey string, paused func() bool, playYet PositionDelegate, options ...ReaderSampleProviderOption) (*LocalTrack, error) {
 	// File health check
 	var err error
 	if _, err = os.Stat(file); err != nil {
@@ -151,7 +151,7 @@ func NewLocalFileTrack(file string, trackKey string, paused func() bool, playYet
 }
 
 // NewLocalBucketTrack creates a reader for NewLocalReaderTrack
-func NewLocalBucketTrack(trackReader *storage.Reader, seekPosition int64, file string, trackKey string, paused func() bool, playYet func(trackKey string, trackPlayHead int64, offset int64, seekPosition int64) int64, options ...ReaderSampleProviderOption) (*LocalTrack, error) {
+func NewLocalBucketTrack(trackReader *storage.Reader, seekPosition int64, file string, trackKey string, paused func() bool, playYet PositionDelegate, options ...ReaderSampleProviderOption) (*LocalTrack, error) {
 	// Determine mime type from extension
 	var mime string
 	switch filepath.Ext(file) {

@@ -50,13 +50,15 @@ type SampleWriteOptions struct {
 	AudioLevel *uint8
 }
 
+type PositionDelegate = func(trackPlayHead int64, ivfOffset int64) int64
+
 // LocalTrack is a local track that simplifies writing samples.
 // It handles timing and publishing of things, so as long as a SampleProvider is provided, the class takes care of
 // publishing tracks at the right frequency
 // This extends webrtc.TrackLocalStaticSample, and adds the ability to write RTP extensions
 type LocalTrack struct {
 	StopTrack             bool
-	playYet               func(trackKey string, trackPlayHead int64, offset int64, seekPosition int64) int64 // in milliseconds before playing the next sample
+	playYet               PositionDelegate // in milliseconds before playing the next sample
 	paused                func() bool
 	seekPosition          int64
 	TrackName             string
@@ -664,7 +666,7 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 				return
 			}
 
-			drift := s.playYet(s.trackKey, s.playHeadPositionMilli, s.ivfSampleOffsetMilli, s.seekPosition)
+			drift := s.playYet(s.playHeadPositionMilli, s.ivfSampleOffsetMilli)
 			if drift >= 0 && !s.paused() {
 				if drift > 1000 {
 					drop = true
