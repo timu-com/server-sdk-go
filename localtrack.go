@@ -17,6 +17,7 @@ package lksdk
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"math/rand"
 	"strings"
@@ -656,8 +657,10 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 			logger.Errorw("could not get sample from provider", err)
 			return
 		}
+		s.playHeadPosition += sample.Duration
+		s.playHeadPositionMilli += sample.Duration.Milliseconds()
+		s.ivfSampleOffsetMilli += sample.Offset
 
-		drop := false
 		for {
 			if s.StopTrack {
 				logger.Infow("EXITING LOCALTRACK", s.TrackName)
@@ -666,38 +669,52 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 
 			drift := s.playYet(s.playHeadPositionMilli, s.ivfSampleOffsetMilli)
 			if drift >= 0 && !s.paused() {
-				if drift > 1000 {
-					drop = true
-					//logger.Infow("dropping frames to catch up", drift)
+				for {
+					drift := s.playYet(s.playHeadPositionMilli, s.ivfSampleOffsetMilli)
+					if drift > 1000 {
+						//logger.Infow("dropping frames to catch up", drift)
+
+						sample, err := provider.NextSample(ctx)
+						if err == io.EOF {
+							logger.Infow(">END OF FILE", s.TrackName)
+							return
+						}
+						if err != nil {
+							logger.Errorw("could not get sample from provider", err)
+							return
+						}
+
+						s.playHeadPosition += sample.Duration
+						s.playHeadPositionMilli += sample.Duration.Milliseconds()
+						s.ivfSampleOffsetMilli += sample.Offset
+					} else {
+						fmt.Printf("%s Skipped ahead to %f", s.TrackName, s.playHeadPosition.Seconds())
+						break
+					}
 				}
+
 				// logger.Infow("playHeadPositionMilli", s.playHeadPositionMilli)
 				break
 			}
 			time.Sleep(1 * time.Millisecond)
 		}
 
-		if !drop {
-			if !s.muted.Load() {
-				var opts *SampleWriteOptions
-				if isAudioProvider {
-					level := audioProvider.CurrentAudioLevel()
-					opts = &SampleWriteOptions{
-						AudioLevel: &level,
-					}
+		if !s.muted.Load() {
+			var opts *SampleWriteOptions
+			if isAudioProvider {
+				level := audioProvider.CurrentAudioLevel()
+				opts = &SampleWriteOptions{
+					AudioLevel: &level,
 				}
-
-				if err := s.WriteSample(sample, opts); err != nil {
-					logger.Errorw("could not write sample", err)
-					return
-				}
-
-				// logger.Infow("TRACK :: ", s.trackName, s.trackTime(s.trackKey), sample.Duration, s.playHeadPosition)
 			}
-		}
 
-		s.playHeadPosition += sample.Duration
-		s.playHeadPositionMilli += sample.Duration.Milliseconds()
-		s.ivfSampleOffsetMilli += sample.Offset
+			if err := s.WriteSample(sample, opts); err != nil {
+				logger.Errorw("could not write sample", err)
+				return
+			}
+
+			// logger.Infow("TRACK :: ", s.trackName, s.trackTime(s.trackKey), sample.Duration, s.playHeadPosition)
+		}
 
 		select {
 		case <-ctx.Done():
