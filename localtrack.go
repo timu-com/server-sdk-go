@@ -17,7 +17,6 @@ package lksdk
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"math/rand"
 	"strings"
@@ -670,6 +669,7 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 			drift := s.playYet(s.playHeadPositionMilli, s.ivfSampleOffsetMilli)
 			if drift >= 0 && !s.paused() {
 				if drift > 1000 {
+					droppedSamples := 0
 					for {
 						drift := s.playYet(s.playHeadPositionMilli, s.ivfSampleOffsetMilli)
 						if drift > 1000 {
@@ -688,16 +688,17 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 							s.playHeadPosition += sample.Duration
 							s.playHeadPositionMilli += sample.Duration.Milliseconds()
 							s.ivfSampleOffsetMilli += sample.Offset
+							droppedSamples++
 						} else {
 							break
 						}
 					}
-					fmt.Printf("%s Skipped ahead to %f", s.TrackName, s.playHeadPosition.Seconds())
+					logger.Infow("skipped ahead", "name", s.TrackName, "dropped", droppedSamples, "new position", s.playHeadPosition.Seconds())
 					continue
 				}
 
 				// logger.Infow("playHeadPositionMilli", s.playHeadPositionMilli)
-				fmt.Printf("%s Continuing with drift %d", s.TrackName, drift)
+				logger.Infow("Continuing with drift", "name", s.TrackName, "drift", drift)
 				break
 			}
 			time.Sleep(1 * time.Millisecond)
