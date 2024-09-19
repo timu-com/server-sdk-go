@@ -142,7 +142,6 @@ func NewLocalFileTrack(file string, trackKey string, paused func() bool, playYet
 	}
 
 	// track.sessionTimeChannel = sessionTimeChannel
-	track.trackKey = trackKey
 	track.TrackName = file
 	track.paused = paused
 	track.playYet = playYet
@@ -151,7 +150,7 @@ func NewLocalFileTrack(file string, trackKey string, paused func() bool, playYet
 }
 
 // NewLocalBucketTrack creates a reader for NewLocalReaderTrack
-func NewLocalBucketTrack(trackReader *storage.Reader, seekPosition int64, file string, trackKey string, paused func() bool, playYet PositionDelegate, options ...ReaderSampleProviderOption) (*LocalTrack, error) {
+func NewLocalBucketTrack(trackReader *storage.Reader, file string, paused func() bool, playYet PositionDelegate, options ...ReaderSampleProviderOption) (*LocalTrack, error) {
 	// Determine mime type from extension
 	var mime string
 	switch filepath.Ext(file) {
@@ -186,11 +185,9 @@ func NewLocalBucketTrack(trackReader *storage.Reader, seekPosition int64, file s
 		return nil, err
 	}
 
-	track.trackKey = trackKey
 	track.TrackName = file
 	track.paused = paused
 	track.playYet = playYet
-	track.seekPosition = seekPosition
 
 	return track, nil
 }

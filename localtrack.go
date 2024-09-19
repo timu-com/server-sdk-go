@@ -60,7 +60,6 @@ type LocalTrack struct {
 	StopTrack             bool
 	playYet               PositionDelegate // in milliseconds before playing the next sample
 	paused                func() bool
-	seekPosition          int64
 	TrackName             string
 	playHeadPosition      time.Duration   // A millisecond value
 	playHeadPositionMilli int64           // A millisecond value
@@ -68,7 +67,6 @@ type LocalTrack struct {
 	ivfOffsetsLookup      map[int64]int64 // for map[seekIncrement]sampleNumberFromFile
 	audioOffsetsLookup    map[int64]int64 // for map[seekIncrement]sampleNumberFromFile
 	// seekIncrement         int64
-	trackKey         string // used to identity a track in a session file
 	packetizer       rtp.Packetizer
 	sequencer        rtp.Sequencer
 	transceiver      *webrtc.RTPTransceiver
