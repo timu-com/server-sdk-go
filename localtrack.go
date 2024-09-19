@@ -668,7 +668,7 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 			}
 
 			drift := s.playYet(s.playHeadPositionMilli, s.ivfSampleOffsetMilli)
-			if drift >= 0 && !s.paused() {
+			if drift >= 1000 && !s.paused() {
 				for {
 					drift := s.playYet(s.playHeadPositionMilli, s.ivfSampleOffsetMilli)
 					if drift > 1000 {
