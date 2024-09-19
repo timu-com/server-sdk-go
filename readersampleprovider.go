@@ -302,8 +302,9 @@ func (p *ReaderSampleProvider) NextSample(ctx context.Context) (media.Sample, er
 		}
 		delta := header.Timestamp - p.lastTimestamp
 		sample.Data = frame
+		// TODO: if we seek in the file itself, p.lastTimeStamp will need to be updated after seek or the duration will be computed incorrectly
 		sample.Duration = time.Duration(p.ivfTimebase*float64(delta)*1000) * time.Millisecond
-		// logger.Infow("TIME OFFSET ", int64(header.Offset))
+		logger.Infow("Sample duration %d", sample.Duration.Milliseconds())
 		sample.Offset = int64(header.Offset)
 		p.lastTimestamp = header.Timestamp
 	case webrtc.MimeTypeOpus:
