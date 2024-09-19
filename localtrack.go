@@ -660,6 +660,8 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 		s.playHeadPositionMilli += sample.Duration.Milliseconds()
 		s.ivfSampleOffsetMilli += sample.Offset
 
+		droppedPackets := 0
+
 		for {
 			if s.StopTrack {
 				logger.Infow("EXITING LOCALTRACK", s.TrackName)
@@ -669,7 +671,6 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 			drift := s.playYet(s.playHeadPositionMilli, s.ivfSampleOffsetMilli)
 			if drift >= 0 && !s.paused() {
 				if drift > 1000 {
-					droppedSamples := 0
 					for {
 						drift := s.playYet(s.playHeadPositionMilli, s.ivfSampleOffsetMilli)
 						if drift > 0 {
@@ -688,12 +689,12 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 							s.playHeadPosition += sample.Duration
 							s.playHeadPositionMilli += sample.Duration.Milliseconds()
 							s.ivfSampleOffsetMilli += sample.Offset
-							droppedSamples++
+							droppedPackets++
 						} else {
 							break
 						}
 					}
-					logger.Infow("skipped ahead", "name", s.TrackName, "dropped", droppedSamples, "new position", s.playHeadPosition.Seconds())
+					logger.Infow("skipped ahead", "name", s.TrackName, "dropped", droppedPackets, "new position", s.playHeadPosition.Seconds())
 					continue
 				}
 
@@ -703,6 +704,8 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 			}
 			time.Sleep(1 * time.Millisecond)
 		}
+
+		sample.PrevDroppedPackets = uint16(droppedPackets)
 
 		if !s.muted.Load() {
 			var opts *SampleWriteOptions
