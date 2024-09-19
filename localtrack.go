@@ -672,7 +672,7 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 					droppedSamples := 0
 					for {
 						drift := s.playYet(s.playHeadPositionMilli, s.ivfSampleOffsetMilli)
-						if drift > 1000 {
+						if drift > 0 {
 							//logger.Infow("dropping frames to catch up", drift)
 
 							sample, err := provider.NextSample(ctx)
