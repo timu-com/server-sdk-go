@@ -698,14 +698,14 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 					continue
 				}
 
-				// logger.Infow("playHeadPositionMilli", s.playHeadPositionMilli)
-				logger.Infow("Continuing with drift", "name", s.TrackName, "drift", drift)
+				// logger.Infow("Continuing with drift", "name", s.TrackName, "drift", drift)
 				break
 			}
 			time.Sleep(1 * time.Millisecond)
 		}
 
-		sample.PrevDroppedPackets = uint16(droppedPackets)
+		// TODO: only log dropped packets if we drift after start
+		//sample.PrevDroppedPackets = uint16(droppedPackets)
 
 		if !s.muted.Load() {
 			var opts *SampleWriteOptions

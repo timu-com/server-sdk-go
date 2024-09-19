@@ -306,6 +306,7 @@ func (p *ReaderSampleProvider) NextSample(ctx context.Context) (media.Sample, er
 		sample.Duration = time.Duration(p.ivfTimebase*float64(delta)*1000) * time.Millisecond
 		//logger.Infow("Sample duration %d", sample.Duration.Milliseconds())
 		sample.Offset = int64(header.Offset)
+		sample.PacketTimestamp = uint32(header.Offset)
 		p.lastTimestamp = header.Timestamp
 	case webrtc.MimeTypeOpus:
 		pageData, pageHeader, err := p.oggReader.ParseNextPage()
