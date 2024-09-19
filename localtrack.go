@@ -697,6 +697,7 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 				}
 
 				// logger.Infow("playHeadPositionMilli", s.playHeadPositionMilli)
+				fmt.Printf("%s Continuing with drift %d", s.TrackName, drift)
 				break
 			}
 			time.Sleep(1 * time.Millisecond)
