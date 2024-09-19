@@ -336,6 +336,8 @@ func (s *LocalTrack) WriteRTP(p *rtp.Packet, opts *SampleWriteOptions) error {
 	s.lock.RUnlock()
 
 	if s.audioLevelID != 0 && opts != nil && opts.AudioLevel != nil {
+		logger.Infow("writing audio to bindings", "id", s.TrackName)
+
 		ext := rtp.AudioLevelExtension{
 			Level: *opts.AudioLevel,
 		}
@@ -349,6 +351,8 @@ func (s *LocalTrack) WriteRTP(p *rtp.Packet, opts *SampleWriteOptions) error {
 	}
 
 	if s.RID() != "" && transceiver != nil && transceiver.Mid() != "" && !ssrcAcked {
+		logger.Infow("writing video to bindings", "id", s.TrackName)
+
 		if s.sdesMidID != 0 {
 			midValue := transceiver.Mid()
 			if err := p.Header.SetExtension(s.sdesMidID, []byte(midValue)); err != nil {
@@ -363,6 +367,8 @@ func (s *LocalTrack) WriteRTP(p *rtp.Packet, opts *SampleWriteOptions) error {
 			}
 		}
 	}
+
+	logger.Infow("writing track to bindings", "id", s.TrackName)
 
 	return s.rtpTrack.WriteRTP(p)
 }
