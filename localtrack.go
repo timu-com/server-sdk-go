@@ -668,7 +668,7 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 			if drift >= 0 && !s.paused() {
 				if drift > 1000 {
 					drop = true
-					logger.Infow("dropping frames to catch up", drift)
+					//logger.Infow("dropping frames to catch up", drift)
 				}
 				// logger.Infow("playHeadPositionMilli", s.playHeadPositionMilli)
 				break
