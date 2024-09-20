@@ -240,6 +240,7 @@ func (e *RTCEngine) configure(
 	}
 	if e.subscriber, err = NewPCTransport(PCTransportParams{
 		Configuration:        configuration,
+		Interceptors:         e.connParams.Interceptors, // add interceptors to subscribers so we can get plis
 		RetransmitBufferSize: e.connParams.RetransmitBufferSize,
 	}); err != nil {
 		return err
