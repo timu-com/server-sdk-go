@@ -366,15 +366,12 @@ func (s *LocalTrack) WriteRTP(p *rtp.Packet, opts *SampleWriteOptions) error {
 		}
 	}
 
-	logger.Infow("writing track to bindings", "id", s.TrackName, "ssrc", p.SSRC)
-
 	return s.rtpTrack.WriteRTP(p)
 }
 
 func (s *LocalTrack) WriteSample(sample media.Sample, opts *SampleWriteOptions) error {
 	s.lock.Lock()
 	if s.packetizer == nil {
-		logger.Infow("no packetizer, dropping packets", "name", s.TrackName)
 		s.lock.Unlock()
 		return nil
 	}
@@ -501,8 +498,6 @@ func (s *LocalTrack) WriteSample(sample media.Sample, opts *SampleWriteOptions) 
 	for _, p := range packets {
 		if err := s.WriteRTP(p, opts); err != nil {
 			writeErrs = append(writeErrs, err)
-		} else {
-			logger.Infow("successfully wrote packets for track", "name", s.TrackName, "count", len(packets))
 		}
 	}
 
@@ -728,8 +723,6 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 				logger.Errorw("could not write sample", err)
 				return
 			}
-
-			logger.Infow("rpt timestamp", "name", s.TrackName, "timestamp", s.lastRTPTimestamp)
 
 			// logger.Infow("TRACK :: ", s.trackName, s.trackTime(s.trackKey), sample.Duration, s.playHeadPosition)
 		}
