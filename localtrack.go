@@ -57,12 +57,12 @@ type PositionDelegate = func(trackPlayHead int64, ivfOffset int64, seekPosition 
 // publishing tracks at the right frequency
 // This extends webrtc.TrackLocalStaticSample, and adds the ability to write RTP extensions
 type LocalTrack struct {
-	StopTrack             bool
-	seekPosition          int64
-	playYet               PositionDelegate // in milliseconds before playing the next sample
-	paused                func() bool
-	TrackName             string
-	playHeadPosition      time.Duration   // A millisecond value
+	StopTrack    bool
+	seekPosition int64
+	playYet      PositionDelegate // in milliseconds before playing the next sample
+	paused       func() bool
+	TrackName    string
+	// playHeadPosition      time.Duration   // A millisecond value
 	playHeadPositionMilli int64           // A millisecond value
 	ivfSampleOffsetMilli  int64           // A millisecond value
 	ivfOffsetsLookup      map[int64]int64 // for map[seekIncrement]sampleNumberFromFile
@@ -660,7 +660,7 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 			logger.Errorw("could not get sample from provider", err)
 			return
 		}
-		s.playHeadPosition += sample.Duration
+		// s.playHeadPosition += sample.Duration
 		s.playHeadPositionMilli += sample.Duration.Milliseconds()
 		s.ivfSampleOffsetMilli += sample.Offset
 
@@ -690,7 +690,7 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 								return
 							}
 
-							s.playHeadPosition += sample.Duration
+							// s.playHeadPosition += sample.Duration
 							s.playHeadPositionMilli += sample.Duration.Milliseconds()
 							s.ivfSampleOffsetMilli += sample.Offset
 							droppedPackets++
@@ -698,7 +698,7 @@ func (s *LocalTrack) writeWorker(provider SampleProvider, onComplete func()) {
 							break
 						}
 					}
-					logger.Infow("skipped ahead", "name", s.TrackName, "dropped", droppedPackets, "new position", s.playHeadPosition.Seconds())
+					logger.Infow("skipped ahead", "name", s.TrackName, "dropped", droppedPackets, "new position" /*s.playHeadPosition.Seconds()*/)
 					continue
 				}
 
